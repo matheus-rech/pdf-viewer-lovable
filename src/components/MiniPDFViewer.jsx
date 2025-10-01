@@ -82,6 +82,7 @@ const MiniPDFViewer = ({ className = "" }) => {
   const [pageOrder, setPageOrder] = useState([]);
   const [isSaveAsModalOpen, setIsSaveAsModalOpen] = useState(false);
   const [saveAsFileName, setSaveAsFileName] = useState('');
+  const [error, setError] = useState(null);
   const mainContentRef = useRef(null);
 
   const onFileChange = (event) => {
@@ -90,6 +91,7 @@ const MiniPDFViewer = ({ className = "" }) => {
       setPdfFile(URL.createObjectURL(file));
       setPdfName(file.name);
       setCurrentPage(1);
+      setError(null);
     } else {
       alert("Please select a valid PDF file.");
     }
@@ -98,6 +100,13 @@ const MiniPDFViewer = ({ className = "" }) => {
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
     setPageOrder(Array.from({ length: numPages }, (_, i) => i + 1));
+    setError(null);
+  };
+
+  const onDocumentLoadError = (error) => {
+    console.error('Error loading PDF:', error);
+    setError('Failed to load PDF. The file may be corrupted or in an unsupported format.');
+    setNumPages(null);
   };
 
   const onSave = async (saveAs = false) => {
@@ -284,24 +293,40 @@ const MiniPDFViewer = ({ className = "" }) => {
       <div className="flex-1 overflow-hidden">
         {pdfFile ? (
           <div className="h-full border rounded-lg overflow-hidden bg-muted/20">
-            <div ref={mainContentRef} className="overflow-y-auto h-full">
-              <Document
-                file={pdfFile}
-                onLoadSuccess={onDocumentLoadSuccess}
-                className="flex flex-col items-center p-4"
-              >
-                {pageOrder.map((pageNumber) => (
-                  <div id={`mini-page_${pageNumber}`} key={`mini-page_${pageNumber}`} className="mb-4">
-                    <Page
-                      pageNumber={pageNumber}
-                      width={Math.min(600, window.innerWidth - 100)}
-                      renderTextLayer={true}
-                      renderAnnotationLayer={true}
-                    />
-                  </div>
-                ))}
-              </Document>
-            </div>
+            {error ? (
+              <div className="flex items-center justify-center h-full p-4">
+                <div className="text-center">
+                  <p className="text-destructive font-semibold mb-2">{error}</p>
+                  <Button onClick={() => {
+                    setPdfFile(null);
+                    setPdfName('');
+                    setError(null);
+                  }}>
+                    Try Another File
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div ref={mainContentRef} className="overflow-y-auto h-full">
+                <Document
+                  file={pdfFile}
+                  onLoadSuccess={onDocumentLoadSuccess}
+                  onLoadError={onDocumentLoadError}
+                  className="flex flex-col items-center p-4"
+                >
+                  {pageOrder.map((pageNumber) => (
+                    <div id={`mini-page_${pageNumber}`} key={`mini-page_${pageNumber}`} className="mb-4">
+                      <Page
+                        pageNumber={pageNumber}
+                        width={Math.min(600, window.innerWidth - 100)}
+                        renderTextLayer={true}
+                        renderAnnotationLayer={true}
+                      />
+                    </div>
+                  ))}
+                </Document>
+              </div>
+            )}
           </div>
         ) : (
           <DragDropArea onFileChange={onFileChange} />
